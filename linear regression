@@ -1,0 +1,53 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+
+x = np.array([1,2,3])
+y = np.array([3,5,7])
+plt.plot(x,y,"b.");
+
+x=np.c_[np.ones((3,1)),x]
+x
+
+theta=np.linalg.inv(x.T.dot(x)).dot(x.T).dot(y)
+theta
+
+xtest=np.array([[0],[2],[4]])
+xtest
+
+xtestb = np.c_[np.ones((3,1)), xtest]
+xtestb
+
+ypred= xtestb.dot(theta)
+ypred
+
+plt.plot(xtest ,ypred , "r-")
+plt.plot(x,y,"b.");
+
+
+from sklearn.linear_model import LinearRegression
+
+x = np.array([1,2,3]).reshape(-1,1)
+x
+
+y = np.array([3,5,7]).reshape(-1,1)
+y
+
+model = LinearRegression()
+
+
+model.fit(x,y)
+
+model.intercept_
+
+model.coef_
+
+model.coef_
+
+xtest = np.array([[0],[2],[4]]).reshape(-1,1)
+xtest
+
+ypred = model.predict(xtest)
+ypred
+
+ 
