@@ -1,0 +1,93 @@
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+j = 0
+title = ['singer']
+images_name = [ 'rt1.jpg', 'g1.jpg']
+for images in range(0,2):
+    img1 = cv2.imread(images_name[j])
+    img2 = cv2.imread(images_name[j+1])
+
+    img1 = cv2.resize(img1, (512,512))
+    img2 = cv2.resize(img2, (512,512))
+
+    # print(img1.shape)
+    # print(img2.shape)
+
+    # joining half of the img1 and half of the img2.
+    img1_img2 = np.hstack((img1[:, :256], img2[:, 256:]))
+
+    # gaussian pyramid for img1
+
+    img1_copy = img1.copy()
+    gp_img1 = [img1_copy]
+
+    for i in range(6):
+        img1_copy = cv2.pyrDown(img1_copy)
+        gp_img1.append(img1_copy)
+
+    # gaussain pyramid for img2
+
+    img2_copy = img2.copy()
+    gp_img2 = [img2_copy]
+
+    for i in range(6):
+        img2_copy = cv2.pyrDown(img2_copy)
+        gp_img2.append(img2_copy)
+
+    # laplacian pyramid for img1
+
+    img1_copy = gp_img1[5]
+    lp_img1 = [img1_copy]
+
+    for i in range(5, 0, -1):
+        gaussian_expanded = cv2.pyrUp(gp_img1[i])
+        laplacian = cv2.subtract(gp_img1[i-1], gaussian_expanded)
+        lp_img1.append(laplacian)
+
+    # laplacian pyramid for img2
+
+    img2_copy = gp_img2[5]
+    lp_img2 = [img2_copy]
+
+    for i in range(5, 0, -1):
+        gaussian_expanded = cv2.pyrUp(gp_img2[i])
+        laplacian = cv2.subtract(gp_img2[i-1], gaussian_expanded)
+        lp_img2.append(laplacian)
+
+    # merging of laplacian pyramids
+
+    img1_img2_pyramid = []
+    for img1_lap, img2_lap in zip(lp_img1, lp_img2):
+        cols, rows, ch = img1_lap.shape
+        laplacian = np.hstack((img1_lap[:, 0:int(cols/2)], img2_lap[:, int(cols/2):]))
+        img1_img2_pyramid.append(laplacian)
+
+    # reconstuction of the actual image
+
+    img1_img2_reconstruct = img1_img2_pyramid[0]
+    for i in range(1, 6):
+        img1_img2_reconstruct = cv2.pyrUp(img1_img2_reconstruct)
+        img1_img2_reconstruct = cv2.add(img1_img2_pyramid[i], img1_img2_reconstruct)
+
+    
+    print(title[images])
+    plt.figure(figsize=(5,5))
+    plt.imshow(img1_img2), plt.title('merged'), plt.show()
+    plt.figure(figsize=(5,5))
+    plt.imshow(img1_img2_reconstruct), plt.title('blended'), plt.show()
+    
+    # saving images in actual colors
+    cv2.imwrite(f'merged({title[images]}).jpg', img1_img2)
+    cv2.imwrite(f'blended({title[images]}).jpg', img1_img2_reconstruct)
+    
+    print('-'*40)
+    j = 2
+    
+    # the code below is for showing the result in actual colors.
+    
+    # cv2.imshow("merged", img1_img2)
+    # cv2.imshow("blended", img1_img2_reconstruct)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
