@@ -1,0 +1,154 @@
+close all
+clc
+clear all
+%------------------------Enhanece--Low--Light---Image---------------------%
+
+
+Image1=imread("images\3.jpg");
+
+
+[h s v] = rgb2hsv(Image1);
+
+
+
+%Set SSIF parameter to optimum values(These values are the default values)
+radius = 19;epsilon = 0.001;
+kappa = 2;scale = 0.1;
+
+
+%Apply multiscale SSIF to V component
+
+
+Stage1 = SSIF(v, v, radius, epsilon, kappa, scale);
+Stage2 = SSIF(Stage1, Stage1, radius, epsilon, kappa, scale);
+
+
+
+%Calculate the Items images
+
+
+detail1 = v - Stage1; 
+detail2 = Stage1 - Stage2; 
+
+
+
+%Apply CLAHE to residual image(Set CLAHE parameters)
+
+
+enhanced_residual = adapthisteq(Stage2,"NumTiles",[2 2],"ClipLimit",0.01);
+
+
+
+
+%Final  Value component
+
+
+value_final = (detail1 + detail2) + enhanced_residual;
+
+
+final_enhanced_result = cat(3, h, s, value_final);
+
+
+final_enhanced_result = hsv2rgb(final_enhanced_result);
+
+
+%-------------------------------------gamma--correction--------------------%
+
+
+% Define the gamma value
+gamma = 0.75;
+
+% Apply gamma correction
+img_corrected = imadjust(Image1,[],[],gamma);
+
+
+figure;
+imshow(Image1);
+title('Original Image')
+
+figure;
+imshow(final_enhanced_result);
+title('Final Enhancement Image');
+
+figure;
+imshow(img_corrected);
+title('img_corrected');
+
+
+%--------------------------------------PSNR--------------------------------%
+
+
+
+[M, N] = size(final_enhanced_result);
+
+
+mse = sum(sum((double(final_enhanced_result) - double(Image1)).^2)) / (M * N);
+
+
+if mse > 0
+    psnr_value = 10 * log10(255^2 / mse);
+else
+    psnr_value = 99;
+end
+
+
+disp(['PSNR value is: ' num2str(psnr_value) ' dB']);
+%-------------------------------------------------------------------------
+[M, N] = size(img_corrected);
+
+
+mse = sum(sum((double(img_corrected) - double(Image1)).^2)) / (M * N);
+
+
+if mse > 0
+    psnr_value = 10 * log10(255^2 / mse);
+else
+    psnr_value = 99;
+end
+
+
+disp(['PSNR value is: ' num2str(psnr_value) ' dB']);
+
+%--------------------------histogram--------------------------------------%
+
+% Compute the histograms
+hist1 = imhist(img_corrected);
+hist2 = imhist(final_enhanced_result);
+
+% Plot the histograms
+figure
+subplot(2,1,1), stem(hist1), title('Histogram of Image1');
+subplot(2,1,2), stem(hist2), title('Histogram of Image2');
+
+% Compute the correlation coefficient
+corr_coef = corr2(hist1, hist2);
+disp(['The correlation coefficient is: ', num2str(corr_coef)]);
+
+
+%--------------------------FUNCTION---SSIF--------------------------------%
+
+function J = SSIF(I,G,radius,Epsilon,kappa,scale)
+
+padMethod = 'symmetric';
+patchSize = 2*radius + 1;
+h = ones(patchSize)/patchSize/patchSize;
+
+mu = imfilter(I, h,padMethod);
+nu = imfilter(G, h,padMethod);
+phi = imfilter(I.*G, h,padMethod) - mu.*nu; %patch covariance
+varSigma = max(0, imfilter(G.*G, h,padMethod) - nu.*nu);
+
+a = phi./(varSigma + Epsilon);
+Beta = (a + sign(phi).*sqrt(a.^2 + 4*kappa*Epsilon./(varSigma + Epsilon)))/2;
+
+%weight calculation
+w = varSigma./(scale*mean(varSigma(:)));
+w = 1./(1+w.^2);
+normalizeFactor = imfilter(w,h,padMethod);
+
+
+%final output
+A = imfilter(Beta.*w, h,padMethod);
+B = imfilter((mu - Beta.*nu).*w, h,padMethod);
+J = (G.*A + B)./normalizeFactor;
+end
